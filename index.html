@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BK-eLearning — Dashboard (Prototype 3.1)</title>
+<style>
+  :root{
+    --red:#C8102E; --red-dark:#A50D26; --red-bg:#FDEDEF; --red-light:#FBE2E6;
+    --ink:#1A1A2E; --grey:#6B7280; --grey-light:#9CA3AF; --line:#E5E7EB;
+    --bg:#F4F5F7; --card:#FFFFFF; --green:#22A45D; --orange:#F5A623; --blue:#7DD3E8;
+    --peach:#F8CFA0; --lime:#C7E5A5;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',Arial,Helvetica,sans-serif}
+  body{background:var(--bg);color:var(--ink);font-size:14px}
+  .app{display:grid;grid-template-columns:250px 1fr;min-height:100vh}
+
+  /* ---------- SIDEBAR ---------- */
+  .sidebar{background:var(--card);border-right:1px solid var(--line);display:flex;flex-direction:column;padding:20px 14px;position:sticky;top:0;height:100vh;overflow-y:auto}
+  .logo{display:flex;align-items:center;gap:10px;padding:0 8px 22px}
+  .logo-mark{width:38px;height:38px;border-radius:9px;background:var(--red)}
+  .logo-text b{display:block;font-size:13px;letter-spacing:.2px}
+  .logo-text span{font-size:9px;color:var(--grey-light);letter-spacing:.4px}
+  .nav-label{font-size:11px;font-weight:700;color:var(--ink);letter-spacing:.8px;margin:14px 8px 6px}
+  .nav a{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;color:#374151;text-decoration:none;margin:1px 0;font-size:13.5px}
+  .nav a:hover{background:#F8F9FA}
+  .nav a.active{background:var(--red-bg);color:var(--red);font-weight:600}
+  .nav .badge{margin-left:auto;background:var(--red);color:#fff;font-size:10.5px;min-width:18px;height:18px;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 5px}
+  .nav .badge.y{background:var(--orange)}
+  .side-foot{margin-top:auto;border-top:1px solid var(--line);padding-top:12px}
+  .user-row{display:flex;align-items:center;gap:10px;padding:8px;border-radius:8px;cursor:pointer}
+  .user-row:hover{background:#F8F9FA}
+  .avatar{width:34px;height:34px;border-radius:50%;background:var(--red);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
+  .user-row .meta b{display:block;font-size:13px}
+  .user-row .meta span{font-size:11.5px;color:var(--grey)}
+  .logout{display:flex;align-items:center;gap:10px;padding:9px 10px;color:#374151;text-decoration:none;font-size:13.5px;border-radius:8px}
+  .logout:hover{background:#F8F9FA}
+
+  /* ---------- MAIN ---------- */
+  .main{display:flex;flex-direction:column}
+  .topbar{background:var(--card);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:18px;padding:14px 26px;position:sticky;top:0;z-index:5}
+  .greet small{display:block;color:var(--grey);font-size:12px}
+  .greet b{font-size:15px;white-space:nowrap}
+  .search{flex:1;max-width:620px;position:relative}
+  .search input{width:100%;padding:10px 14px 10px 38px;border:1px solid var(--line);border-radius:22px;font-size:13.5px;background:#FAFAFA;outline:none}
+  .search input:focus{border-color:var(--red)}
+  .search .ic{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--grey-light)}
+  .top-right{display:flex;align-items:center;gap:14px;margin-left:auto}
+  .pill{border:1px solid var(--line);border-radius:8px;padding:5px 10px;font-size:12.5px;font-weight:600;cursor:pointer;background:#fff}
+  .switch{width:46px;height:24px;border-radius:12px;background:var(--red);position:relative;cursor:pointer}
+  .switch::after{content:"";position:absolute;width:18px;height:18px;border-radius:50%;background:#fff;top:3px;left:4px;transition:.2s}
+  .date{font-size:13px;color:#374151;white-space:nowrap}
+  .bell{position:relative;cursor:pointer;font-size:18px}
+  .bell .badge{position:absolute;top:-6px;right:-7px;background:var(--red);color:#fff;font-size:9.5px;min-width:15px;height:15px;border-radius:8px;display:flex;align-items:center;justify-content:center}
+
+  .content{display:grid;grid-template-columns:1fr 360px;gap:22px;padding:22px 26px;align-items:start}
+  .card{background:var(--card);border-radius:12px;border:1px solid var(--line)}
+
+  /* Deadline panel */
+  .deadline{border:1.5px solid var(--red);overflow:hidden}
+  .deadline-head{background:var(--red);color:#fff;display:flex;align-items:center;justify-content:space-between;padding:13px 18px}
+  .deadline-head h2{font-size:19px;font-weight:800}
+  .link-w{color:#fff;font-size:12.5px;text-decoration:none;opacity:.95}
+  .deadline-body{background:var(--red-bg);padding:10px 14px}
+  .dl-item{display:flex;align-items:center;gap:12px;padding:10px 6px;border-bottom:1px solid #F3D4D9;cursor:pointer;border-radius:8px}
+  .dl-item:last-child{border-bottom:none}
+  .dl-item:hover{background:#fff}
+  .dl-ic{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px}
+  .dl-meta{flex:1}
+  .dl-meta small{color:var(--grey);font-size:12.5px;display:block}
+  .dl-meta b{font-size:14.5px}
+  .dl-due{color:var(--red);font-weight:700;font-size:13.5px;white-space:nowrap}
+  .dl-go{width:30px;height:30px;border-radius:50%;border:1.5px solid var(--red);color:var(--red);display:flex;align-items:center;justify-content:center;background:#fff}
+
+  /* Courses */
+  .sec-head{display:flex;align-items:center;justify-content:space-between;padding:16px 18px 8px}
+  .sec-head h2{font-size:17px;font-weight:800}
+  .sec-side{display:flex;align-items:center;gap:12px;font-size:12.5px;color:var(--grey)}
+  .btn-light{border:1px solid var(--line);background:#fff;border-radius:8px;padding:5px 10px;font-size:12.5px;cursor:pointer;color:#374151}
+  .course{display:flex;align-items:center;gap:14px;padding:14px 18px;border-top:1px solid var(--line);cursor:pointer}
+  .course:hover{background:#FAFAFA}
+  .course-sq{width:46px;height:46px;border-radius:9px;flex-shrink:0}
+  .course .info{flex:1}
+  .course .info b{font-size:14.5px;display:block;margin-bottom:3px}
+  .course .info p{font-size:12.5px;color:var(--grey);line-height:1.45}
+  .ring{width:52px;height:52px;flex-shrink:0;position:relative}
+  .ring svg{transform:rotate(-90deg)}
+  .ring span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:700;color:var(--orange)}
+
+  /* Results chart */
+  .chart-legend{display:flex;align-items:center;gap:14px;font-size:12px;color:var(--grey)}
+  .lg{display:flex;align-items:center;gap:5px}
+  .lg .sw{width:18px;height:7px;border-radius:4px;background:var(--red)}
+  .lg .mk{width:3px;height:12px;background:var(--ink)}
+  .lg .mk.t{background:var(--orange)}
+  .link-r{color:#2563EB;font-size:12.5px;cursor:pointer}
+  .chart{padding:8px 18px 14px;display:flex;align-items:center;gap:10px}
+  .chart .rows{flex:1}
+  .bar-row{display:grid;grid-template-columns:90px 1fr 48px;align-items:center;gap:12px;margin:14px 0}
+  .bar-row label{font-size:13px;color:#374151;text-align:right}
+  .bar{height:9px;border-radius:5px;background:#E9EAEC;position:relative}
+  .bar .fill{position:absolute;left:0;top:0;height:100%;border-radius:5px;background:var(--red)}
+  .bar .avg{position:absolute;top:-3px;width:3px;height:15px;background:var(--ink);border-radius:2px}
+  .bar .goal{position:absolute;top:-3px;width:3px;height:15px;background:var(--orange);border-radius:2px}
+  .bar-row .val{font-size:13px;font-weight:700;color:var(--red)}
+  .axis{display:grid;grid-template-columns:90px 1fr 48px;gap:12px;margin-top:4px}
+  .axis .ticks{display:flex;justify-content:space-between;font-size:11px;color:var(--grey-light)}
+  .chart-cap{text-align:center;font-weight:700;font-size:15px;padding:4px 0 16px}
+  .nav-arrow{width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--grey)}
+
+  /* Calendar */
+  .cal-card{overflow:hidden}
+  .cal-head{background:var(--red);color:#fff;display:flex;align-items:center;justify-content:space-between;padding:13px 18px}
+  .cal-head h2{font-size:18px;font-weight:800}
+  .cal-month{display:flex;align-items:center;justify-content:space-between;padding:12px 16px 4px;font-weight:700;font-size:14px}
+  .cal-month button{border:none;background:none;font-size:16px;cursor:pointer;color:var(--grey);padding:4px 10px}
+  table.cal{width:100%;border-collapse:collapse;padding:0 10px}
+  .cal th{font-size:12px;color:var(--grey);font-weight:600;padding:8px 0 4px}
+  .cal td{text-align:center;padding:7px 0;font-size:13px;cursor:pointer;position:relative}
+  .cal td span{display:inline-flex;width:30px;height:30px;align-items:center;justify-content:center;border-radius:50%}
+  .cal td:hover span{background:#F3F4F6}
+  .cal td.dim{color:#C9CDD3}
+  .cal td.today span{background:var(--red);color:#fff;font-weight:700}
+  .cal .dots{position:absolute;bottom:1px;left:0;right:0;display:flex;gap:2px;justify-content:center}
+  .cal .dot{width:4px;height:4px;border-radius:50%}
+  .events{padding:6px 16px 16px}
+  .events h3{font-size:14px;font-weight:800;margin:10px 0 8px}
+  .ev{display:flex;align-items:center;gap:11px;background:#FAFAFB;border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px;cursor:pointer}
+  .ev:hover{background:#F4F5F7}
+  .ev-ic{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+  .ev .meta{flex:1}
+  .ev .meta b{font-size:13px;display:block}
+  .ev .meta span{font-size:11.5px;color:var(--grey)}
+  .ev .time{font-size:12px;color:#374151;text-align:right;white-space:nowrap}
+  .ev .time .ok{color:var(--green)} .ev .time .soon{color:var(--red);font-weight:600;font-size:11px}
+
+  /* Consent modal */
+  .overlay{position:fixed;inset:0;background:rgba(15,18,35,.55);display:flex;align-items:center;justify-content:center;z-index:50}
+  .modal{background:#fff;border-radius:14px;max-width:480px;width:92%;padding:28px}
+  .modal h2{font-size:18px;margin-bottom:10px}
+  .modal p{font-size:13px;color:var(--grey);line-height:1.55;margin-bottom:14px}
+  .modal input[type=text]{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-size:14px;margin-bottom:12px}
+  .modal label.ck{display:flex;gap:8px;font-size:12.5px;color:#374151;line-height:1.5;margin-bottom:16px;cursor:pointer}
+  .btn-red{width:100%;background:var(--red);color:#fff;border:none;border-radius:8px;padding:12px;font-size:14px;font-weight:700;cursor:pointer}
+  .btn-red:disabled{opacity:.45;cursor:not-allowed}
+  .blurred{filter:blur(7px);pointer-events:none;user-select:none}
+  .toast{position:fixed;bottom:18px;right:18px;background:var(--ink);color:#fff;padding:9px 16px;border-radius:8px;font-size:12.5px;opacity:0;transition:.3s;z-index:60}
+  .toast.show{opacity:.92}
+</style>
+</head>
+<body>
+
+<div class="app" id="app">
+  <!-- ================= SIDEBAR ================= -->
+  <aside class="sidebar">
+    <div class="logo" data-track="logo">
+      <div class="logo-mark"></div>
+      <div class="logo-text"><b>BK-ELEARNING</b><span>MANAGEMENT SYSTEM</span></div>
+    </div>
+    <div class="nav-label">MENU CHÍNH</div>
+    <nav class="nav">
+      <a href="#" class="active" data-track="nav_dashboard">🏠 Dashboard</a>
+      <a href="#" data-track="nav_khoa_hoc">📚 Khóa học <span class="badge">8</span></a>
+      <a href="#" data-track="nav_bai_tap">📝 Bài tập <span class="badge">3</span></a>
+      <a href="#" data-track="nav_diem_so">🎯 Điểm số</a>
+      <a href="#" data-track="nav_tin_nhan">💬 Tin nhắn <span class="badge y">2</span></a>
+      <a href="#" data-track="nav_tai_lieu">📄 Tài liệu</a>
+    </nav>
+    <div class="nav-label">HỌC TẬP</div>
+    <nav class="nav">
+      <a href="#" data-track="nav_tien_trinh">📈 Tiến trình</a>
+      <a href="#" data-track="nav_chung_chi">🏅 Chứng chỉ</a>
+      <a href="#" data-track="nav_ghi_chu">🗒️ Ghi chú</a>
+    </nav>
+    <div class="nav-label">CỘNG ĐỒNG</div>
+    <nav class="nav">
+      <a href="#" data-track="nav_ban_hoc">👥 Bạn học</a>
+      <a href="#" data-track="nav_dien_dan">💭 Diễn đàn</a>
+      <a href="#" data-track="nav_bang_xep_hang">🏆 Bảng xếp hạng</a>
+    </nav>
+    <div class="side-foot">
+      <div class="user-row" data-track="profile">
+        <div class="avatar">TA</div>
+        <div class="meta"><b>Trần Văn A</b><span>Sinh viên</span></div>
+        <span style="margin-left:auto;color:var(--grey-light)">›</span>
+      </div>
+      <a href="#" class="logout" data-track="logout">⎋ Đăng xuất</a>
+    </div>
+  </aside>
+
+  <!-- ================= MAIN ================= -->
+  <div class="main">
+    <header class="topbar">
+      <div class="greet"><small>Chào buổi sáng,</small><b>Trần Văn A</b></div>
+      <div class="search">
+        <span class="ic">🔍</span>
+        <input type="text" placeholder="Tìm kiếm khóa học, bài học, ..." data-track="search" id="searchBox">
+      </div>
+      <div class="top-right">
+        <button class="pill" data-track="lang_toggle">VI</button>
+        <span>☀️</span><div class="switch" data-track="theme_toggle"></div><span>🌙</span>
+        <div class="avatar" style="width:30px;height:30px;font-size:11px" data-track="avatar_top">TA</div>
+        <span class="date" id="todayLabel">18 tháng 4, 2026</span>
+        <div class="bell" data-track="notifications">🔔<span class="badge">3</span></div>
+      </div>
+    </header>
+
+    <div class="content">
+      <!-- LEFT COLUMN -->
+      <div style="display:flex;flex-direction:column;gap:22px">
+
+        <!-- Deadlines -->
+        <section class="card deadline" data-section="deadlines">
+          <div class="deadline-head">
+            <h2>Deadline sắp tới</h2>
+            <a href="#" class="link-w" data-track="deadlines_view_all">Xem tất cả</a>
+          </div>
+          <div class="deadline-body">
+            <div class="dl-item" data-track="deadline_item_btn1_123456">
+              <div class="dl-ic" style="background:var(--peach)">📅</div>
+              <div class="dl-meta"><small>Tâm lý học ứng dụng - 123456</small><b>Bài tập nhóm số 1</b></div>
+              <span class="dl-due">Còn 3 ngày nữa</span>
+              <span class="dl-go">→</span>
+            </div>
+            <div class="dl-item" data-track="deadline_item_ch2_123457">
+              <div class="dl-ic" style="background:var(--lime)">📅</div>
+              <div class="dl-meta"><small>Nhập môn ngành Công nghệ Giáo dục - 123457</small><b>Nộp bài tập chương 2</b></div>
+              <span class="dl-due">Còn 5 ngày nữa</span>
+              <span class="dl-go">→</span>
+            </div>
+            <div class="dl-item" data-track="deadline_item_pres_123458">
+              <div class="dl-ic" style="background:var(--blue)">📅</div>
+              <div class="dl-meta"><small>Các công nghệ giáo dục tiên tiến - 123458</small><b>Bài thuyết trình cá nhân</b></div>
+              <span class="dl-due">Còn 7 ngày nữa</span>
+              <span class="dl-go">→</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- Courses -->
+        <section class="card" data-section="courses">
+          <div class="sec-head">
+            <h2>Khóa học của tôi</h2>
+            <div class="sec-side">
+              <span>3/8 khoá hiển thị</span>
+              <button class="btn-light" data-track="courses_view_all">Tất cả các khoá &gt;</button>
+            </div>
+          </div>
+          <div class="course" data-track="course_123456">
+            <div class="course-sq" style="background:var(--peach)"></div>
+            <div class="info"><b>Tâm lý học ứng dụng - 123456</b>
+              <p>Học phần cung cấp cái nhìn tổng quan về khoa học tâm lý, mở rộng hiểu biết về các cơ sở tâm lý học ứng dụng trong lĩnh vực kỹ thuật.</p></div>
+            <div class="ring" data-pct="50"></div>
+          </div>
+          <div class="course" data-track="course_123457">
+            <div class="course-sq" style="background:var(--lime)"></div>
+            <div class="info"><b>Nhập môn ngành Công nghệ Giáo dục - 123457</b>
+              <p>Hiểu biết về học tập hiện đại, lịch sử phát triển và hình thành của ngành Công nghệ giáo dục.</p></div>
+            <div class="ring" data-pct="50"></div>
+          </div>
+          <div class="course" data-track="course_123458">
+            <div class="course-sq" style="background:var(--blue)"></div>
+            <div class="info"><b>Các công nghệ giáo dục tiên tiến - 123458</b>
+              <p>Học phần cung cấp sự hiểu biết về các xu hướng và công nghệ mới nhất trong giáo dục, cách sử dụng để nâng cao việc dạy và học.</p></div>
+            <div class="ring" data-pct="50"></div>
+          </div>
+        </section>
+
+        <!-- Results -->
+        <section class="card" data-section="results">
+          <div class="sec-head">
+            <h2>Kết quả học tập</h2>
+            <div class="chart-legend">
+              <span class="lg"><span class="sw"></span>Của bạn</span>
+              <span class="lg"><span class="mk"></span>TB lớp</span>
+              <span class="lg"><span class="mk t"></span>Mục tiêu</span>
+              <span class="link-r" data-track="results_detail">Chi tiết</span>
+            </div>
+          </div>
+          <div class="chart">
+            <button class="nav-arrow" data-track="results_prev">←</button>
+            <div class="rows">
+              <div class="bar-row"><label>Điểm quiz</label>
+                <div class="bar"><div class="fill" style="width:72%"></div><div class="avg" style="left:64%"></div><div class="goal" style="left:83%"></div></div>
+                <span class="val">72%</span></div>
+              <div class="bar-row"><label>Bài tập</label>
+                <div class="bar"><div class="fill" style="width:85%"></div><div class="avg" style="left:79%"></div><div class="goal" style="left:85%"></div></div>
+                <span class="val">85%</span></div>
+              <div class="bar-row"><label>Chuyên cần</label>
+                <div class="bar"><div class="fill" style="width:90%"></div><div class="avg" style="left:92%"></div><div class="goal" style="left:83%"></div></div>
+                <span class="val">90%</span></div>
+              <div class="bar-row"><label>Xem video</label>
+                <div class="bar"><div class="fill" style="width:48%"></div><div class="goal" style="left:83%"></div></div>
+                <span class="val">48%</span></div>
+              <div class="axis"><span></span><div class="ticks"><span>0%</span><span>20%</span><span>40%</span><span>60%</span><span>80%</span><span>100%</span></div><span></span></div>
+            </div>
+            <button class="nav-arrow" data-track="results_next">→</button>
+          </div>
+          <div class="chart-cap">Các công nghệ giáo dục tiên tiến - 123458</div>
+        </section>
+      </div>
+
+      <!-- RIGHT COLUMN: CALENDAR -->
+      <section class="card cal-card" data-section="calendar">
+        <div class="cal-head">
+          <h2>Lịch học</h2>
+          <a href="#" class="link-w" data-track="calendar_view_all">Xem tất cả</a>
+        </div>
+        <div class="cal-month">
+          <button data-track="calendar_prev">‹</button>
+          <span>Tháng 4/2026</span>
+          <button data-track="calendar_next">›</button>
+        </div>
+        <table class="cal" id="calTable">
+          <thead><tr><th>T2</th><th>T3</th><th>T4</th><th>T5</th><th>T6</th><th>T7</th><th>CN</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <div class="events">
+          <h3>Hôm nay - 18 tháng 4</h3>
+          <div class="ev" data-track="event_quiz_tamly">
+            <div class="ev-ic" style="background:#FFF3D6">❓</div>
+            <div class="meta"><b>Quiz</b><span>Tâm lý học ứng dụng</span></div>
+            <div class="time">15:00 <span class="ok">✔</span></div>
+          </div>
+          <div class="ev" data-track="event_nop_bai_tap">
+            <div class="ev-ic" style="background:#E2F4FB">✏️</div>
+            <div class="meta"><b>Nộp bài tập</b><span>Các công nghệ giáo dục tiên tiến</span></div>
+            <div class="time">23:59 <span class="ok">✔</span></div>
+          </div>
+          <div class="ev" data-track="event_buoi_hoc_truc_tuyen">
+            <div class="ev-ic" style="background:#E5F6E9">🎥</div>
+            <div class="meta"><b>Buổi học trực tuyến</b><span>Nhập môn Công nghệ Giáo dục</span></div>
+            <div class="time">19:00<br><span class="soon">Sắp diễn ra</span></div>
+          </div>
+          <h3>Sắp tới</h3>
+          <div class="ev" data-track="event_thuyet_trinh">
+            <div class="ev-ic" style="background:#FDEDEF">📅</div>
+            <div class="meta"><b>Bài thuyết trình cá nhân</b><span>Các công nghệ giáo dục tiên tiến</span></div>
+            <div class="time">22/04<br>09:00</div>
+          </div>
+          <div class="ev" data-track="event_giua_ky">
+            <div class="ev-ic" style="background:#FFF3D6">📄</div>
+            <div class="meta"><b>Kiểm tra giữa kỳ</b><span>Nhập môn Công nghệ Giáo dục</span></div>
+            <div class="time">25/04<br>14:00</div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<!-- Consent modal -->
+<div class="overlay" id="consentOverlay">
+  <div class="modal">
+    <h2>Tham gia nghiên cứu</h2>
+    <p>Đây là phiên bản thử nghiệm của dashboard BK-eLearning thuộc nghiên cứu
+      <i>“Thiết kế giao diện học tập trên môi trường số và sự gắn kết của sinh viên”</i>.
+      Hệ thống ghi nhận thao tác sử dụng (bấm, cuộn, thời gian xem) một cách <b>ẩn danh</b>
+      nhằm mục đích nghiên cứu. Không thu thập nội dung cá nhân.</p>
+    <input type="text" id="participantId" placeholder="Mã số sinh viên (hoặc mã được phát)" autocomplete="off">
+    <label class="ck"><input type="checkbox" id="consentCheck">
+      Tôi đồng ý tham gia và cho phép ghi nhận dữ liệu thao tác ẩn danh phục vụ nghiên cứu.</label>
+    <button class="btn-red" id="startBtn" disabled>Bắt đầu sử dụng</button>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="tracker.js"></script>
+<script>
+/* ---------- render progress rings ---------- */
+document.querySelectorAll('.ring').forEach(r=>{
+  const pct=+r.dataset.pct, R=22, C=2*Math.PI*R;
+  r.innerHTML=`<svg width="52" height="52">
+    <circle cx="26" cy="26" r="${R}" fill="none" stroke="#EFEFF1" stroke-width="5"/>
+    <circle cx="26" cy="26" r="${R}" fill="none" stroke="var(--orange)" stroke-width="5"
+      stroke-linecap="round" stroke-dasharray="${C*pct/100} ${C}"/></svg><span>${pct}%</span>`;
+});
+
+/* ---------- render calendar (Apr 2026, Mon-first; today = 18) ---------- */
+(function(){
+  const tb=document.querySelector('#calTable tbody');
+  const dots={1:['var(--orange)','var(--blue)'],4:['var(--orange)','var(--green)','var(--blue)'],15:['var(--orange)','var(--blue)'],18:[]};
+  let html='', day=1, next=1;
+  const lead=[30,31]; // Mon 30, Tue 31 March
+  for(let w=0;w<5;w++){ html+='<tr>';
+    for(let d=0;d<7;d++){
+      const idx=w*7+d;
+      if(idx<2){ html+=`<td class="dim" data-track="cal_day_prev_${lead[idx]}"><span>${lead[idx]}</span></td>`; }
+      else if(day<=30){
+        const t=day===18?' today':'';
+        const dd=dots[day]?`<div class="dots">${dots[day].map(c=>`<span class="dot" style="background:${c}"></span>`).join('')}</div>`:'';
+        html+=`<td class="${t.trim()}" data-track="cal_day_${day}"><span>${day}</span>${dd}</td>`; day++;
+      } else { html+=`<td class="dim" data-track="cal_day_next_${next}"><span>${next}</span></td>`; next++; }
+    } html+='</tr>';
+  }
+  tb.innerHTML=html;
+})();
+</script>
+</body>
+</html>
