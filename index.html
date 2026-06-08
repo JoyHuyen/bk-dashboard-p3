@@ -146,6 +146,40 @@
   .blurred{filter:blur(7px);pointer-events:none;user-select:none}
   .toast{position:fixed;bottom:18px;right:18px;background:var(--ink);color:#fff;padding:9px 16px;border-radius:8px;font-size:12.5px;opacity:0;transition:.3s;z-index:60}
   .toast.show{opacity:.92}
+
+  /* ---------- Detail modal ---------- */
+  #detailOverlay{display:none}
+  #detailOverlay .modal{max-width:560px;max-height:80vh;overflow-y:auto}
+  .dm-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+  .dm-head h2{font-size:17px}
+  .dm-close{border:none;background:#F3F4F6;width:30px;height:30px;border-radius:50%;font-size:14px;cursor:pointer;color:var(--grey)}
+  .dm-row{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+  .dm-row:last-child{border-bottom:none}
+  .dm-row .ic{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .dm-row b{display:block} .dm-row small{color:var(--grey)}
+  .dm-kv{display:grid;grid-template-columns:120px 1fr;gap:6px 12px;font-size:13.5px;margin:8px 0}
+  .dm-kv dt{color:var(--grey)} .dm-kv dd{font-weight:600}
+
+  /* ---------- Bell dropdown ---------- */
+  .bell-wrap{position:relative}
+  .bell-drop{display:none;position:absolute;right:0;top:34px;width:320px;background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 28px rgba(0,0,0,.13);z-index:30;overflow:hidden}
+  .bell-drop.open{display:block}
+  .bell-drop h4{font-size:13px;padding:11px 14px;border-bottom:1px solid var(--line)}
+  .bd-item{padding:10px 14px;border-bottom:1px solid var(--line);font-size:12.5px;cursor:pointer}
+  .bd-item:hover{background:#FAFAFB}
+  .bd-item b{display:block;font-size:13px} .bd-item span{color:var(--grey)}
+
+  /* ---------- Dark mode ---------- */
+  body.dark{--bg:#11131A;--card:#1B1E27;--ink:#E8EAF0;--grey:#9AA1AE;--grey-light:#707788;--line:#2A2E3A;--red-bg:#33161E}
+  body.dark .search input{background:#232734;color:var(--ink)}
+  body.dark .pill,body.dark .btn-light,body.dark .nav-arrow{background:#232734;color:var(--ink)}
+  body.dark .nav a{color:#C6CBD6} body.dark .logout{color:#C6CBD6}
+  body.dark .nav a:hover,body.dark .user-row:hover,body.dark .course:hover,body.dark .cal td:hover span{background:#232734}
+  body.dark .ev,body.dark .bd-item:hover{background:#232734;border-color:var(--line)}
+  body.dark .dl-item:hover{background:#2A1B22}
+  body.dark .deadline-body{background:#26151B}
+  body.dark .dm-close{background:#232734;color:#C6CBD6}
+  body.dark .bar{background:#2A2E3A}
 </style>
 </head>
 <body>
@@ -201,7 +235,10 @@
         <span>☀️</span><div class="switch" data-track="theme_toggle"></div><span>🌙</span>
         <div class="avatar" style="width:30px;height:30px;font-size:11px" data-track="avatar_top">TA</div>
         <span class="date" id="todayLabel">18 tháng 4, 2026</span>
-        <div class="bell" data-track="notifications">🔔<span class="badge">3</span></div>
+        <div class="bell-wrap">
+          <div class="bell" data-track="notifications">🔔<span class="badge" id="bellBadge">3</span></div>
+          <div class="bell-drop" id="bellDrop"><h4>Thông báo</h4><div id="bellList"></div></div>
+        </div>
       </div>
     </header>
 
@@ -355,6 +392,14 @@
   </div>
 </div>
 
+<!-- Detail modal (tương tác) -->
+<div class="overlay" id="detailOverlay">
+  <div class="modal">
+    <div class="dm-head"><h2 id="dmTitle"></h2><button class="dm-close" data-track="modal_close">✕</button></div>
+    <div id="dmBody"></div>
+  </div>
+</div>
+
 <!-- Consent modal -->
 <div class="overlay" id="consentOverlay">
   <div class="modal">
@@ -382,25 +427,48 @@ document.querySelectorAll('.ring').forEach(r=>{
       stroke-linecap="round" stroke-dasharray="${C*pct/100} ${C}"/></svg><span>${pct}%</span>`;
 });
 
-/* ---------- render calendar (Apr 2026, Mon-first; today = 18) ---------- */
-(function(){
-  const tb=document.querySelector('#calTable tbody');
-  const dots={1:['var(--orange)','var(--blue)'],4:['var(--orange)','var(--green)','var(--blue)'],15:['var(--orange)','var(--blue)'],18:[]};
-  let html='', day=1, next=1;
-  const lead=[30,31]; // Mon 30, Tue 31 March
-  for(let w=0;w<5;w++){ html+='<tr>';
-    for(let d=0;d<7;d++){
-      const idx=w*7+d;
-      if(idx<2){ html+=`<td class="dim" data-track="cal_day_prev_${lead[idx]}"><span>${lead[idx]}</span></td>`; }
-      else if(day<=30){
-        const t=day===18?' today':'';
-        const dd=dots[day]?`<div class="dots">${dots[day].map(c=>`<span class="dot" style="background:${c}"></span>`).join('')}</div>`:'';
-        html+=`<td class="${t.trim()}" data-track="cal_day_${day}"><span>${day}</span>${dd}</td>`; day++;
-      } else { html+=`<td class="dim" data-track="cal_day_next_${next}"><span>${next}</span></td>`; next++; }
-    } html+='</tr>';
+/* ---------- header: ngày & lời chào theo thời gian thật ---------- */
+const NOW = new Date();
+document.getElementById('todayLabel').textContent =
+  `${NOW.getDate()} tháng ${NOW.getMonth()+1}, ${NOW.getFullYear()}`;
+document.querySelector('.greet small').textContent =
+  NOW.getHours() < 12 ? 'Chào buổi sáng,' : NOW.getHours() < 18 ? 'Chào buổi chiều,' : 'Chào buổi tối,';
+
+/* ---------- calendar động: chuyển tháng, dot theo lịch thi/deadline, bấm ngày ---------- */
+let calY = NOW.getFullYear(), calM = NOW.getMonth(); // tháng đang hiển thị
+function calDots(){
+  const map = {}; // 'yyyy-mm-dd' -> [màu]
+  const c = window.CONTENT || {};
+  (c.exams||[]).forEach(e => { const k=String(e.date).slice(0,10); (map[k]=map[k]||[]).push('var(--red)'); });
+  (c.deadlines||[]).forEach(d => { const k=String(d.due).slice(0,10); (map[k]=map[k]||[]).push('var(--orange)'); });
+  return map;
+}
+function renderCal(){
+  const tb = document.querySelector('#calTable tbody');
+  document.querySelector('.cal-month span').textContent = `Tháng ${calM+1}/${calY}`;
+  const first = new Date(calY, calM, 1);
+  const lead = (first.getDay() + 6) % 7;            // số ô tháng trước (Mon-first)
+  const dim  = new Date(calY, calM+1, 0).getDate(); // số ngày trong tháng
+  const dimPrev = new Date(calY, calM, 0).getDate();
+  const todayK = `${NOW.getFullYear()}-${String(NOW.getMonth()+1).padStart(2,'0')}-${String(NOW.getDate()).padStart(2,'0')}`;
+  const dots = calDots();
+  let html='', cell=0, day=1, next=1;
+  while (day <= dim) {
+    html += '<tr>';
+    for (let d=0; d<7; d++, cell++) {
+      if (cell < lead) html += `<td class="dim"><span>${dimPrev-lead+1+cell}</span></td>`;
+      else if (day <= dim) {
+        const k = `${calY}-${String(calM+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+        const t = k===todayK ? ' class="today"' : '';
+        const dd = dots[k] ? `<div class="dots">${dots[k].slice(0,3).map(c=>`<span class="dot" style="background:${c}"></span>`).join('')}</div>` : '';
+        html += `<td${t} data-track="cal_day_${k}" data-date="${k}"><span>${day}</span>${dd}</td>`; day++;
+      } else html += `<td class="dim"><span>${next++}</span></td>`;
+    }
+    html += '</tr>';
   }
-  tb.innerHTML=html;
-})();
+  tb.innerHTML = html;
+}
+renderCal();
 
 /* ============================================================
    LIVE CONTENT — đọc dữ liệu thật từ Google Sheet qua Apps Script
@@ -416,10 +484,12 @@ window.loadContent = function(pid){
   if (typeof GAS_URL === 'undefined' || !GAS_URL) return;
   fetch(GAS_URL + '?action=content&pid=' + encodeURIComponent(pid))
     .then(r => r.json()).then(c => {
+      window.CONTENT = c;
       try { renderDeadlines(c.deadlines); } catch(e){}
       try { renderExams(c.exams); } catch(e){}
       try { renderAnnouncements(c.announcements); } catch(e){}
       try { renderGrades(c.grades); } catch(e){}
+      try { renderCal(); renderBell(c.announcements); } catch(e){}
     }).catch(() => {}); // lỗi mạng → dùng demo
 };
 
@@ -485,6 +555,128 @@ function renderGrades(list){
 
 /* Nếu SV đã consent từ phiên trước → tải nội dung ngay */
 if (localStorage.getItem('bk_participant')) window.loadContent(localStorage.getItem('bk_participant'));
+
+/* ============================================================
+   LỚP TƯƠNG TÁC — mọi click đều có phản hồi nhìn thấy được
+   (tracker.js vẫn tự log mọi data-track như cũ)
+   ============================================================ */
+const dOverlay = document.getElementById('detailOverlay');
+function openDetail(title, html){
+  document.getElementById('dmTitle').textContent = title;
+  document.getElementById('dmBody').innerHTML = html;
+  dOverlay.style.display = 'flex';
+}
+dOverlay.addEventListener('click', e => {
+  if (e.target === dOverlay || e.target.closest('.dm-close')) dOverlay.style.display = 'none';
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') dOverlay.style.display = 'none'; });
+
+/* ---- dữ liệu hiện hành (live hoặc demo) ---- */
+function D(){
+  const c = window.CONTENT || {};
+  const demoDl = [
+    {course:'Tâm lý học ứng dụng - 123456', task:'Bài tập nhóm số 1', due:addD(3)},
+    {course:'Nhập môn ngành Công nghệ Giáo dục - 123457', task:'Nộp bài tập chương 2', due:addD(5)},
+    {course:'Các công nghệ giáo dục tiên tiến - 123458', task:'Bài thuyết trình cá nhân', due:addD(7)}];
+  const demoAnn = [{date:addD(0), title:'Chào mừng bạn đến với BK-eLearning', body:'Đây là phiên bản thử nghiệm thuộc nghiên cứu thiết kế giao diện học tập.'}];
+  return {
+    deadlines: (c.deadlines && c.deadlines.length) ? c.deadlines : demoDl,
+    exams: c.exams || [],
+    announcements: (c.announcements && c.announcements.length) ? c.announcements : demoAnn,
+    grades: c.grades || []
+  };
+}
+function addD(n){ const x = new Date(); x.setDate(x.getDate()+n); return x.toISOString().slice(0,10); }
+
+/* ---- các modal nội dung ---- */
+function mDeadlines(){
+  openDetail('Tất cả deadline', D().deadlines.map(d => `
+    <div class="dm-row"><div class="ic" style="background:var(--red-bg)">📅</div>
+      <div><b>${esc(d.task)}</b><small>${esc(d.course)}</small></div>
+      <div style="margin-left:auto;color:var(--red);font-weight:700;white-space:nowrap">
+        ${daysLeft(d.due)===0?'Hôm nay':daysLeft(d.due)<0?'Đã qua':'Còn '+daysLeft(d.due)+' ngày'}</div></div>`).join(''));
+}
+function mGrades(){
+  const g = D().grades;
+  openDetail('Điểm số của bạn', g.length
+    ? g.map(x => `<div class="dm-row"><div class="ic" style="background:#E5F6E9">🎯</div>
+        <div><b>${esc(x.component)}</b><small>${esc(x.course)}</small></div>
+        <div style="margin-left:auto;font-weight:800;font-size:16px;color:var(--red)">${esc(x.score)}<small style="font-weight:400;color:var(--grey)">/10</small></div></div>`).join('')
+    : '<p style="font-size:13px;color:var(--grey)">Chưa có điểm được công bố cho MSSV của bạn. Điểm sẽ hiển thị tại đây ngay khi giảng viên cập nhật.</p>');
+}
+function mAnnouncements(){
+  openDetail('Thông báo', D().announcements.map(a => `
+    <div class="dm-row"><div class="ic" style="background:#FFF3D6">🔔</div>
+      <div><b>${esc(a.title)}</b><small>${fmtDM(a.date)} — ${esc(a.body)}</small></div></div>`).join(''));
+}
+function mCourses(){
+  openDetail('Khóa học của tôi (3/8)', ['Tâm lý học ứng dụng - 123456','Nhập môn ngành Công nghệ Giáo dục - 123457','Các công nghệ giáo dục tiên tiến - 123458']
+    .map(c => `<div class="dm-row"><div class="ic" style="background:var(--peach)">📚</div><div><b>${c}</b><small>Tiến độ 50% · bấm để vào khóa học (bản LMS đầy đủ)</small></div></div>`).join('')
+    + '<p style="font-size:12px;color:var(--grey);margin-top:8px">5 khóa còn lại thuộc học kỳ trước.</p>');
+}
+function mDay(k){
+  const d = D();
+  const items = [
+    ...d.exams.filter(e => String(e.date).slice(0,10) === k)
+      .map(e => `<div class="dm-row"><div class="ic" style="background:var(--red-bg)">📄</div><div><b>Thi: ${esc(e.course)}</b><small>${esc(e.time||'')} ${e.room?'· Phòng '+esc(e.room):''} ${e.note?'· '+esc(e.note):''}</small></div></div>`),
+    ...d.deadlines.filter(x => String(x.due).slice(0,10) === k)
+      .map(x => `<div class="dm-row"><div class="ic" style="background:#FFF3D6">📅</div><div><b>Hạn nộp: ${esc(x.task)}</b><small>${esc(x.course)}</small></div></div>`)
+  ];
+  openDetail('Ngày ' + k.split('-').reverse().join('/'),
+    items.join('') || '<p style="font-size:13px;color:var(--grey)">Không có lịch thi hay deadline trong ngày này.</p>');
+}
+
+/* ---- chuông thông báo ---- */
+function renderBell(list){
+  const l = (list && list.length) ? list : D().announcements;
+  document.getElementById('bellBadge').textContent = l.length;
+  document.getElementById('bellList').innerHTML = l.slice(0,5).map(a =>
+    `<div class="bd-item"><b>${esc(a.title)}</b><span>${fmtDM(a.date)} — ${esc(a.body).slice(0,80)}…</span></div>`).join('');
+}
+renderBell();
+
+/* ---- điều phối click ---- */
+const ACTIONS = {
+  notifications: () => document.getElementById('bellDrop').classList.toggle('open'),
+  theme_toggle: () => document.body.classList.toggle('dark'),
+  deadlines_view_all: mDeadlines, nav_bai_tap: mDeadlines,
+  results_detail: mGrades, nav_diem_so: mGrades,
+  nav_tin_nhan: mAnnouncements, calendar_view_all: mAnnouncements,
+  courses_view_all: mCourses, nav_khoa_hoc: mCourses,
+  calendar_prev: () => { calM--; if (calM<0){calM=11;calY--;} renderCal(); },
+  calendar_next: () => { calM++; if (calM>11){calM=0;calY++;} renderCal(); },
+  results_prev: () => toast('Bản thử nghiệm hiển thị 1 môn — bản đầy đủ sẽ chuyển giữa các môn.'),
+  results_next: () => toast('Bản thử nghiệm hiển thị 1 môn — bản đầy đủ sẽ chuyển giữa các môn.'),
+};
+const SOFT = ['nav_dashboard','nav_tai_lieu','nav_tien_trinh','nav_chung_chi','nav_ghi_chu','nav_ban_hoc','nav_dien_dan','nav_bang_xep_hang','profile','avatar_top','lang_toggle','logo'];
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-track]');
+  if (t) {
+    const k = t.dataset.track;
+    if (ACTIONS[k]) { e.preventDefault(); ACTIONS[k](); }
+    else if (SOFT.includes(k)) { e.preventDefault(); toast('Mục này thuộc bản LMS đầy đủ — ngoài phạm vi thử nghiệm.'); }
+    if (k.startsWith('nav_')) { // đổi trạng thái active cho cảm giác điều hướng
+      document.querySelectorAll('.nav a').forEach(a => a.classList.remove('active'));
+      t.classList.add('active');
+    }
+  }
+  // bấm item: deadline / sự kiện lịch / ngày trên lịch / thông báo
+  const dl = e.target.closest('.dl-item');   if (dl) mDeadlines();
+  const ev = e.target.closest('.ev');        if (ev) mAnnouncements();
+  const td = e.target.closest('td[data-date]'); if (td) mDay(td.dataset.date);
+  const an = e.target.closest('#annList .course, .bd-item'); if (an) mAnnouncements();
+  const co = e.target.closest('section[data-section="courses"] .course'); if (co) mCourses();
+  if (!e.target.closest('.bell-wrap')) document.getElementById('bellDrop').classList.remove('open');
+});
+
+/* ---- tìm kiếm lọc khóa học ngay trên trang ---- */
+const sb = document.getElementById('searchBox');
+if (sb) sb.addEventListener('input', () => {
+  const q = sb.value.toLowerCase().trim();
+  document.querySelectorAll('section[data-section="courses"] .course').forEach(c => {
+    c.style.display = !q || c.textContent.toLowerCase().includes(q) ? '' : 'none';
+  });
+});
 </script>
 </body>
 </html>
