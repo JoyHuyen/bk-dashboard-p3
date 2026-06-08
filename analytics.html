@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Analytics — BK Dashboard Research</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root{--red:#C8102E;--ink:#1A1A2E;--grey:#6B7280;--line:#E5E7EB;--bg:#F4F5F7;--card:#fff}
+  *{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',Arial,sans-serif}
+  body{background:var(--bg);color:var(--ink);font-size:14px;padding:24px}
+  h1{font-size:20px;margin-bottom:4px} .sub{color:var(--grey);font-size:13px;margin-bottom:18px}
+  .bar-top{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:20px}
+  input,select{padding:9px 12px;border:1px solid var(--line);border-radius:8px;font-size:13px}
+  #gasUrl{width:420px} #adminKey{width:180px}
+  button{background:var(--red);color:#fff;border:none;border-radius:8px;padding:9px 18px;font-weight:700;cursor:pointer;font-size:13px}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .kpi b{font-size:24px;display:block;color:var(--red)} .kpi span{font-size:12px;color:var(--grey)}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+  .panel h2{font-size:14px;margin-bottom:10px}
+  .panel.wide{grid-column:1/-1}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th,td{padding:7px 9px;border-bottom:1px solid var(--line);text-align:left}
+  th{background:#FAFAFB;font-size:11.5px;text-transform:uppercase;color:var(--grey)}
+  tr:hover td{background:#FAFAFB}
+  #status{font-size:12.5px;color:var(--grey);margin-left:6px}
+  @media(max-width:900px){.grid{grid-template-columns:1fr}#gasUrl{width:100%}}
+</style>
+</head>
+<body>
+<h1>📊 Analytics — Dashboard Engagement Research</h1>
+<div class="sub">Dữ liệu trace từ Google Sheet "BK Dashboard Data" · chỉ dùng cho nghiên cứu viên</div>
+
+<div class="bar-top">
+  <input id="gasUrl" placeholder="URL Apps Script /exec" value="https://script.google.com/macros/s/AKfycbx_TSeUza9JMXBZ_AGMKr-yo-3NcQC3Mk8gUkmTQzNEq39nuGCGfWNb6FNsMp1pLi6thA/exec">
+  <input id="adminKey" type="password" placeholder="Mật khẩu (ADMIN_KEY)">
+  <select id="verFilter"><option value="">Tất cả phiên bản</option></select>
+  <button onclick="load()">Tải dữ liệu</button>
+  <span id="status"></span>
+</div>
+
+<div class="kpis" id="kpis"></div>
+
+<div class="grid">
+  <div class="panel"><h2>Click theo widget (top 15)</h2><canvas id="chClicks"></canvas></div>
+  <div class="panel"><h2>Dwell time trung bình theo khu vực (giây)</h2><canvas id="chDwell"></canvas></div>
+  <div class="panel wide"><h2>Hoạt động theo ngày (số event)</h2><canvas id="chDays"></canvas></div>
+  <div class="panel wide">
+    <h2>Theo từng sinh viên</h2>
+    <table id="tblP"><thead><tr>
+      <th>MSSV</th><th>Phiên</th><th>Ngày hoạt động</th><th>Tổng thời lượng (phút)</th><th>Click</th><th>Lần cuối</th>
+    </tr></thead><tbody></tbody></table>
+  </div>
+</div>
+
+<script>
+let RAW = [], charts = {};
+const $ = id => document.getElementById(id);
+
+function load(){
+  const url = $('gasUrl').value.trim(), key = $('adminKey').value.trim();
+  if(!url || !key){ $('status').textContent = 'Nhập URL và mật khẩu.'; return; }
+  localStorage.setItem('an_key', key);
+  $('status').textContent = 'Đang tải…';
+  fetch(url + '?action=events&key=' + encodeURIComponent(key))
+    .then(r => r.json())
+    .then(d => {
+      if(d.error){ $('status').textContent = '❌ Sai mật khẩu (ADMIN_KEY trong Apps Script).'; return; }
+      RAW = (d.events || []).map(e => {
+        let m = {}; try { m = JSON.parse(e.metadata || '{}'); } catch(_){}
+        return {...e, meta: m, day: String(e.ts).slice(0,10)};
+      }).filter(e => e.participant_id && !/^TEST|^\(pending\)/i.test(e.participant_id));
+      const vers = [...new Set(RAW.map(e => e.prototype_version))].filter(Boolean);
+      $('verFilter').innerHTML = '<option value="">Tất cả phiên bản</option>' +
+        vers.map(v => `<option>${v}</option>`).join('');
+      $('status').textContent = `✓ ${RAW.length} events`;
+      render();
+    })
+    .catch(() => $('status').textContent = '❌ Không tải được — kiểm tra URL/mạng.');
+}
+$('verFilter').addEventListener('change', render);
+if (localStorage.getItem('an_key')) $('adminKey').value = localStorage.getItem('an_key');
+
+function render(){
+  const v = $('verFilter').value;
+  const ev = v ? RAW.filter(e => e.prototype_version === v) : RAW;
+
+  /* ---- KPI ---- */
+  const pids = [...new Set(ev.map(e => e.participant_id))];
+  const sessions = [...new Set(ev.map(e => e.session_id))];
+  const ends = ev.filter(e => e.event_type === 'session_end');
+  const totalMin = ends.reduce((s,e) => s + (Number(e.meta.duration_s)||0), 0) / 60;
+  const days = [...new Set(ev.map(e => e.day))];
+  const retP = pids.filter(p => new Set(ev.filter(e=>e.participant_id===p).map(e=>e.day)).size > 1);
+  $('kpis').innerHTML = [
+    [pids.length, 'Sinh viên tham gia'],
+    [sessions.length, 'Phiên sử dụng'],
+    [(sessions.length/Math.max(1,pids.length)).toFixed(1), 'Phiên / SV'],
+    [Math.round(totalMin), 'Tổng phút sử dụng'],
+    [days.length, 'Ngày có hoạt động'],
+    [pids.length ? Math.round(100*retP.length/pids.length)+'%' : '—', 'SV quay lại ≥2 ngày'],
+  ].map(([b,s]) => `<div class="kpi"><b>${b}</b><span>${s}</span></div>`).join('');
+
+  /* ---- Clicks by widget ---- */
+  const cc = {};
+  ev.filter(e => e.event_type === 'click').forEach(e => cc[e.target_component] = (cc[e.target_component]||0)+1);
+  const top = Object.entries(cc).sort((a,b) => b[1]-a[1]).slice(0,15);
+  draw('chClicks', 'bar', top.map(x=>x[0]), top.map(x=>x[1]), true);
+
+  /* ---- Dwell ---- */
+  const dw = {}, dn = {};
+  ends.forEach(e => Object.entries(e.meta.dwell_s||{}).forEach(([k,s]) => { dw[k]=(dw[k]||0)+Number(s); dn[k]=(dn[k]||0)+1; }));
+  const dk = Object.keys(dw);
+  draw('chDwell', 'bar', dk, dk.map(k => Math.round(dw[k]/dn[k])), false);
+
+  /* ---- Activity by day ---- */
+  const dd = {};
+  ev.forEach(e => dd[e.day] = (dd[e.day]||0)+1);
+  const sd = Object.keys(dd).sort();
+  draw('chDays', 'line', sd, sd.map(k => dd[k]), false);
+
+  /* ---- Per-participant table ---- */
+  $('tblP').querySelector('tbody').innerHTML = pids.map(p => {
+    const pe = ev.filter(e => e.participant_id === p);
+    const ps = new Set(pe.map(e => e.session_id)).size;
+    const pd = new Set(pe.map(e => e.day)).size;
+    const pm = pe.filter(e => e.event_type==='session_end').reduce((s,e) => s+(Number(e.meta.duration_s)||0),0)/60;
+    const pc = pe.filter(e => e.event_type==='click').length;
+    const last = pe.map(e => e.ts).sort().pop();
+    return `<tr><td><b>${p}</b></td><td>${ps}</td><td>${pd}</td><td>${pm.toFixed(1)}</td><td>${pc}</td><td>${String(last).slice(0,16).replace('T',' ')}</td></tr>`;
+  }).join('');
+}
+
+function draw(id, type, labels, data, horizontal){
+  if (charts[id]) charts[id].destroy();
+  charts[id] = new Chart($(id), {
+    type,
+    data: { labels, datasets: [{ data, backgroundColor: type==='line' ? 'rgba(200,16,46,.15)' : '#C8102E',
+      borderColor: '#C8102E', fill: type==='line', tension: .3, pointRadius: 2 }] },
+    options: { indexAxis: horizontal ? 'y' : 'x', plugins: { legend: { display: false } },
+      scales: { x: { ticks: { font: { size: 10 } } }, y: { ticks: { font: { size: 10 } } } } }
+  });
+}
+</script>
+</body>
+</html>

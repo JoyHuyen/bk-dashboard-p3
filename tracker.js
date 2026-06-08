@@ -70,6 +70,7 @@ if (participantId) {  // đã consent từ trước
     app.classList.remove("blurred");
     logEvent("consent_given", "consent_modal");
     logEvent("page_view", "dashboard", { returning: false });
+    if (window.loadContent) window.loadContent(participantId); // tải nội dung thật theo MSSV
   });
 }
 

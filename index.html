@@ -298,6 +298,12 @@
           </div>
           <div class="chart-cap">Các công nghệ giáo dục tiên tiến - 123458</div>
         </section>
+
+        <!-- Announcements (đổ từ Google Sheet) -->
+        <section class="card" data-section="announcements" id="annCard" style="display:none">
+          <div class="sec-head"><h2>Thông báo</h2></div>
+          <div id="annList"></div>
+        </section>
       </div>
 
       <!-- RIGHT COLUMN: CALENDAR -->
@@ -395,6 +401,90 @@ document.querySelectorAll('.ring').forEach(r=>{
   }
   tb.innerHTML=html;
 })();
+
+/* ============================================================
+   LIVE CONTENT — đọc dữ liệu thật từ Google Sheet qua Apps Script
+   (deadline, lịch thi, thông báo, điểm của đúng MSSV).
+   Nếu Sheet trống / lỗi mạng → giữ nguyên dữ liệu demo có sẵn.
+   ============================================================ */
+const SQ_COLORS = ['var(--peach)','var(--lime)','var(--blue)'];
+function daysLeft(d){ return Math.ceil((new Date(d) - new Date()) / 86400000); }
+function fmtDM(d){ const x=new Date(d); return String(x.getDate()).padStart(2,'0')+'/'+String(x.getMonth()+1).padStart(2,'0'); }
+function esc(s){ const d=document.createElement('div'); d.textContent=String(s??''); return d.innerHTML; }
+
+window.loadContent = function(pid){
+  if (typeof GAS_URL === 'undefined' || !GAS_URL) return;
+  fetch(GAS_URL + '?action=content&pid=' + encodeURIComponent(pid))
+    .then(r => r.json()).then(c => {
+      try { renderDeadlines(c.deadlines); } catch(e){}
+      try { renderExams(c.exams); } catch(e){}
+      try { renderAnnouncements(c.announcements); } catch(e){}
+      try { renderGrades(c.grades); } catch(e){}
+    }).catch(() => {}); // lỗi mạng → dùng demo
+};
+
+function renderDeadlines(list){
+  if (!list || !list.length) return;
+  const body = document.querySelector('.deadline-body');
+  body.innerHTML = list
+    .map(d => ({...d, left: daysLeft(d.due)}))
+    .filter(d => d.left >= 0)
+    .sort((a,b) => a.left - b.left)
+    .map((d,i) => `
+      <div class="dl-item" data-track="deadline_${i}_${esc(d.task).slice(0,25).replace(/\s+/g,'_')}">
+        <div class="dl-ic" style="background:${SQ_COLORS[i%3]}">📅</div>
+        <div class="dl-meta"><small>${esc(d.course)}</small><b>${esc(d.task)}</b></div>
+        <span class="dl-due">${d.left===0?'Hôm nay!':'Còn '+d.left+' ngày nữa'}</span>
+        <span class="dl-go">→</span>
+      </div>`).join('') || '<div style="padding:14px;color:var(--grey)">Không có deadline nào sắp tới 🎉</div>';
+}
+
+function renderExams(list){
+  if (!list || !list.length) return;
+  const ev = document.querySelector('.events');
+  const today = new Date().toISOString().slice(0,10);
+  const mk = e => `
+    <div class="ev" data-track="exam_${esc(e.course).slice(0,20).replace(/\s+/g,'_')}">
+      <div class="ev-ic" style="background:#FDEDEF">📄</div>
+      <div class="meta"><b>${esc(e.course)}</b><span>${esc(e.note||'')} ${e.room?'· Phòng '+esc(e.room):''}</span></div>
+      <div class="time">${fmtDM(e.date)}<br>${esc(e.time||'')}</div>
+    </div>`;
+  const todayList = list.filter(e => String(e.date).slice(0,10) === today);
+  const upcoming  = list.filter(e => String(e.date).slice(0,10) > today)
+                        .sort((a,b) => String(a.date).localeCompare(String(b.date)));
+  ev.innerHTML =
+    `<h3>Lịch thi ${todayList.length ? '- hôm nay' : ''}</h3>` +
+    (todayList.map(mk).join('') || '<div style="font-size:12.5px;color:var(--grey);margin-bottom:8px">Hôm nay không có lịch thi.</div>') +
+    `<h3>Sắp tới</h3>` +
+    (upcoming.map(mk).join('') || '<div style="font-size:12.5px;color:var(--grey)">Chưa có lịch.</div>');
+}
+
+function renderAnnouncements(list){
+  if (!list || !list.length) return;
+  document.getElementById('annCard').style.display = '';
+  document.getElementById('annList').innerHTML = list
+    .sort((a,b) => String(b.date).localeCompare(String(a.date)))
+    .map((a,i) => `
+      <div class="course" data-track="announcement_${i}">
+        <div class="course-sq" style="background:${SQ_COLORS[i%3]};width:36px;height:36px">🔔</div>
+        <div class="info"><b>${esc(a.title)} <span style="color:var(--grey);font-weight:400;font-size:12px">· ${fmtDM(a.date)}</span></b>
+          <p>${esc(a.body)}</p></div>
+      </div>`).join('');
+}
+
+function renderGrades(list){
+  if (!list || !list.length) return;
+  const rows = document.querySelector('.chart .rows');
+  const axis = `<div class="axis"><span></span><div class="ticks"><span>0</span><span>2</span><span>4</span><span>6</span><span>8</span><span>10</span></div><span></span></div>`;
+  rows.innerHTML = list.map(g => `
+    <div class="bar-row"><label>${esc(g.component)}</label>
+      <div class="bar"><div class="fill" style="width:${Math.min(100, Number(g.score)*10)}%"></div></div>
+      <span class="val">${esc(g.score)}/10</span></div>`).join('') + axis;
+  document.querySelector('.chart-cap').textContent = list[0].course + ' — điểm của bạn';
+}
+
+/* Nếu SV đã consent từ phiên trước → tải nội dung ngay */
+if (localStorage.getItem('bk_participant')) window.loadContent(localStorage.getItem('bk_participant'));
 </script>
 </body>
 </html>
