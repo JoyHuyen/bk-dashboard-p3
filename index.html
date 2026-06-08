@@ -542,15 +542,27 @@ function renderAnnouncements(list){
       </div>`).join('');
 }
 
+function gradeStats(list){
+  const pub = list.filter(g => g.score !== '' && g.score != null && !isNaN(Number(g.score)));
+  const wPub = pub.reduce((s,g) => s + Number(g.weight||0), 0);
+  const total = wPub ? pub.reduce((s,g) => s + Number(g.score)*Number(g.weight||0), 0) / wPub : 0;
+  return { pub, wPub, total };
+}
 function renderGrades(list){
   if (!list || !list.length) return;
   const rows = document.querySelector('.chart .rows');
   const axis = `<div class="axis"><span></span><div class="ticks"><span>0</span><span>2</span><span>4</span><span>6</span><span>8</span><span>10</span></div><span></span></div>`;
-  rows.innerHTML = list.map(g => `
-    <div class="bar-row"><label>${esc(g.component)}</label>
-      <div class="bar"><div class="fill" style="width:${Math.min(100, Number(g.score)*10)}%"></div></div>
-      <span class="val">${esc(g.score)}/10</span></div>`).join('') + axis;
-  document.querySelector('.chart-cap').textContent = list[0].course + ' — điểm của bạn';
+  const { wPub, total } = gradeStats(list);
+  rows.innerHTML = list.map(g => {
+    const pub = g.score !== '' && g.score != null && !isNaN(Number(g.score));
+    return `
+    <div class="bar-row"><label>${esc(g.component)}${g.weight ? ' <span style="color:var(--grey)">('+esc(g.weight)+'%)</span>' : ''}</label>
+      <div class="bar">${pub ? `<div class="fill" style="width:${Math.min(100, Number(g.score)*10)}%"></div>` : ''}</div>
+      <span class="val">${pub ? esc(g.score)+'/10' : '<span style="color:var(--grey-light)">—</span>'}</span></div>`;
+  }).join('') + axis;
+  document.querySelector('.chart-cap').innerHTML =
+    `${esc(list[0].course)} — tạm tính: <span style="color:var(--red)">${total.toFixed(1)}/10</span>` +
+    ` <span style="font-weight:400;font-size:12px;color:var(--grey)">(đã công bố ${wPub}% trọng số)</span>`;
 }
 
 /* Nếu SV đã consent từ phiên trước → tải nội dung ngay */
@@ -598,11 +610,21 @@ function mDeadlines(){
 }
 function mGrades(){
   const g = D().grades;
-  openDetail('Điểm số của bạn', g.length
-    ? g.map(x => `<div class="dm-row"><div class="ic" style="background:#E5F6E9">🎯</div>
-        <div><b>${esc(x.component)}</b><small>${esc(x.course)}</small></div>
-        <div style="margin-left:auto;font-weight:800;font-size:16px;color:var(--red)">${esc(x.score)}<small style="font-weight:400;color:var(--grey)">/10</small></div></div>`).join('')
-    : '<p style="font-size:13px;color:var(--grey)">Chưa có điểm được công bố cho MSSV của bạn. Điểm sẽ hiển thị tại đây ngay khi giảng viên cập nhật.</p>');
+  if (!g.length) {
+    openDetail('Điểm số của bạn', '<p style="font-size:13px;color:var(--grey)">Chưa có điểm được công bố cho MSSV của bạn. Điểm sẽ hiển thị tại đây ngay khi giảng viên cập nhật.</p>');
+    return;
+  }
+  const { wPub, total } = gradeStats(g);
+  openDetail('Điểm số của bạn',
+    g.map(x => {
+      const pub = x.score !== '' && x.score != null && !isNaN(Number(x.score));
+      return `<div class="dm-row"><div class="ic" style="background:#E5F6E9">🎯</div>
+        <div><b>${esc(x.component)} ${x.weight ? '<span style="font-weight:400;color:var(--grey)">· trọng số '+esc(x.weight)+'%</span>' : ''}</b><small>${esc(x.course)}</small></div>
+        <div style="margin-left:auto;font-weight:800;font-size:16px;color:${pub?'var(--red)':'var(--grey-light)'}">${pub ? esc(x.score) : '—'}<small style="font-weight:400;color:var(--grey)">/10</small></div></div>`;
+    }).join('') +
+    `<div class="dm-row" style="border-top:2px solid var(--line)"><div class="ic" style="background:var(--red-bg)">Σ</div>
+      <div><b>Điểm tổng kết tạm tính</b><small>dựa trên ${wPub}% trọng số đã công bố</small></div>
+      <div style="margin-left:auto;font-weight:800;font-size:18px;color:var(--red)">${total.toFixed(1)}<small style="font-weight:400;color:var(--grey)">/10</small></div></div>`);
 }
 function mAnnouncements(){
   openDetail('Thông báo', D().announcements.map(a => `
