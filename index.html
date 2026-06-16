@@ -13,7 +13,11 @@
   }
   *{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',Arial,Helvetica,sans-serif}
   body{background:var(--bg);color:var(--ink);font-size:14px}
-  .app{display:grid;grid-template-columns:250px 1fr;min-height:100vh}
+  .app{display:grid;grid-template-columns:250px 1fr;min-height:100vh;transition:grid-template-columns .2s}
+  .app.collapsed{grid-template-columns:0 1fr}
+  .app.collapsed .sidebar{transform:translateX(-100%);padding-left:0;padding-right:0;width:0;overflow:hidden}
+  .menu-toggle{border:none;background:#F3F4F6;width:36px;height:36px;border-radius:9px;font-size:17px;cursor:pointer;color:#374151;flex-shrink:0}
+  .menu-toggle:hover{background:#E5E7EB}
 
   /* ---------- SIDEBAR ---------- */
   .sidebar{background:var(--card);border-right:1px solid var(--line);display:flex;flex-direction:column;padding:20px 14px;position:sticky;top:0;height:100vh;overflow-y:auto}
@@ -47,13 +51,15 @@
   .search .ic{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--grey-light)}
   .top-right{display:flex;align-items:center;gap:14px;margin-left:auto}
   .pill{border:1px solid var(--line);border-radius:8px;padding:5px 10px;font-size:12.5px;font-weight:600;cursor:pointer;background:#fff}
-  .switch{width:46px;height:24px;border-radius:12px;background:var(--red);position:relative;cursor:pointer}
+  .switch{width:46px;height:24px;border-radius:12px;background:#CBD0DA;position:relative;cursor:pointer;transition:background .2s}
   .switch::after{content:"";position:absolute;width:18px;height:18px;border-radius:50%;background:#fff;top:3px;left:4px;transition:.2s}
+  body.dark .switch{background:#3A4150}
+  body.dark .switch::after{left:24px}
   .date{font-size:13px;color:#374151;white-space:nowrap}
   .bell{position:relative;cursor:pointer;font-size:18px}
   .bell .badge{position:absolute;top:-6px;right:-7px;background:var(--red);color:#fff;font-size:9.5px;min-width:15px;height:15px;border-radius:8px;display:flex;align-items:center;justify-content:center}
 
-  .content{display:grid;grid-template-columns:1fr 360px;gap:22px;padding:22px 26px;align-items:start}
+  .content{display:grid;grid-template-columns:1fr 328px;gap:22px;padding:22px 26px;align-items:start}
   .card{background:var(--card);border-radius:12px;border:1px solid var(--line)}
 
   /* Deadline panel */
@@ -131,7 +137,7 @@
   .ev .meta{flex:1}
   .ev .meta b{font-size:13px;display:block}
   .ev .meta span{font-size:11.5px;color:var(--grey)}
-  .ev .time{font-size:12px;color:#374151;text-align:right;white-space:nowrap}
+  .ev .time{font-size:12px;color:#374151;text-align:right;white-space:nowrap;display:flex;flex-direction:column;gap:2px;align-items:flex-end}
   .ev .time .ok{color:var(--green)} .ev .time .soon{color:var(--red);font-weight:600;font-size:11px}
 
   /* Consent modal */
@@ -180,6 +186,7 @@
   body.dark .deadline-body{background:#26151B}
   body.dark .dm-close{background:#232734;color:#C6CBD6}
   body.dark .bar{background:#2A2E3A}
+  body.dark .menu-toggle{background:#232734;color:#C6CBD6}
 </style>
 </head>
 <body>
@@ -225,6 +232,7 @@
   <!-- ================= MAIN ================= -->
   <div class="main">
     <header class="topbar">
+      <button class="menu-toggle" id="menuToggle" data-track="menu_toggle" title="Ẩn/hiện menu">☰</button>
       <div class="greet"><small>Chào buổi sáng,</small><b>Trần Văn A</b></div>
       <div class="search">
         <span class="ic">🔍</span>
@@ -249,27 +257,24 @@
         <!-- Deadlines -->
         <section class="card deadline" data-section="deadlines">
           <div class="deadline-head">
-            <h2>Deadline sắp tới</h2>
+            <h2>Bài tập sắp hết hạn</h2>
             <a href="#" class="link-w" data-track="deadlines_view_all">Xem tất cả</a>
           </div>
           <div class="deadline-body">
-            <div class="dl-item" data-track="deadline_item_btn1_123456">
+            <div class="dl-item" data-track="deadline_item_btn1_123456" data-course="Tâm lý học ứng dụng - 123456" data-task="Bài tập nhóm số 1">
               <div class="dl-ic" style="background:var(--peach)">📅</div>
               <div class="dl-meta"><small>Tâm lý học ứng dụng - 123456</small><b>Bài tập nhóm số 1</b></div>
               <span class="dl-due">Còn 3 ngày nữa</span>
-              <span class="dl-go">→</span>
             </div>
-            <div class="dl-item" data-track="deadline_item_ch2_123457">
+            <div class="dl-item" data-track="deadline_item_ch2_123457" data-course="Nhập môn ngành Công nghệ Giáo dục - 123457" data-task="Nộp bài tập chương 2">
               <div class="dl-ic" style="background:var(--lime)">📅</div>
               <div class="dl-meta"><small>Nhập môn ngành Công nghệ Giáo dục - 123457</small><b>Nộp bài tập chương 2</b></div>
               <span class="dl-due">Còn 5 ngày nữa</span>
-              <span class="dl-go">→</span>
             </div>
-            <div class="dl-item" data-track="deadline_item_pres_123458">
+            <div class="dl-item" data-track="deadline_item_pres_123458" data-course="Các công nghệ giáo dục tiên tiến - 123458" data-task="Bài thuyết trình cá nhân">
               <div class="dl-ic" style="background:var(--blue)">📅</div>
               <div class="dl-meta"><small>Các công nghệ giáo dục tiên tiến - 123458</small><b>Bài thuyết trình cá nhân</b></div>
               <span class="dl-due">Còn 7 ngày nữa</span>
-              <span class="dl-go">→</span>
             </div>
           </div>
         </section>
@@ -285,20 +290,17 @@
           </div>
           <div class="course" data-track="course_123456">
             <div class="course-sq" style="background:var(--peach)"></div>
-            <div class="info"><b>Tâm lý học ứng dụng - 123456</b>
-              <p>Học phần cung cấp cái nhìn tổng quan về khoa học tâm lý, mở rộng hiểu biết về các cơ sở tâm lý học ứng dụng trong lĩnh vực kỹ thuật.</p></div>
+            <div class="info"><b>Tâm lý học ứng dụng - 123456</b></div>
             <div class="ring" data-pct="50"></div>
           </div>
           <div class="course" data-track="course_123457">
             <div class="course-sq" style="background:var(--lime)"></div>
-            <div class="info"><b>Nhập môn ngành Công nghệ Giáo dục - 123457</b>
-              <p>Hiểu biết về học tập hiện đại, lịch sử phát triển và hình thành của ngành Công nghệ giáo dục.</p></div>
+            <div class="info"><b>Nhập môn ngành Công nghệ Giáo dục - 123457</b></div>
             <div class="ring" data-pct="50"></div>
           </div>
           <div class="course" data-track="course_123458">
             <div class="course-sq" style="background:var(--blue)"></div>
-            <div class="info"><b>Các công nghệ giáo dục tiên tiến - 123458</b>
-              <p>Học phần cung cấp sự hiểu biết về các xu hướng và công nghệ mới nhất trong giáo dục, cách sử dụng để nâng cao việc dạy và học.</p></div>
+            <div class="info"><b>Các công nghệ giáo dục tiên tiến - 123458</b></div>
             <div class="ring" data-pct="50"></div>
           </div>
         </section>
@@ -373,18 +375,18 @@
           <div class="ev" data-track="event_buoi_hoc_truc_tuyen">
             <div class="ev-ic" style="background:#E5F6E9">🎥</div>
             <div class="meta"><b>Buổi học trực tuyến</b><span>Nhập môn Công nghệ Giáo dục</span></div>
-            <div class="time">19:00<br><span class="soon">Sắp diễn ra</span></div>
+            <div class="time"><span>19:00</span><span class="soon">Sắp diễn ra</span></div>
           </div>
           <h3>Sắp tới</h3>
           <div class="ev" data-track="event_thuyet_trinh">
             <div class="ev-ic" style="background:#FDEDEF">📅</div>
             <div class="meta"><b>Bài thuyết trình cá nhân</b><span>Các công nghệ giáo dục tiên tiến</span></div>
-            <div class="time">22/04<br>09:00</div>
+            <div class="time"><span>22/04</span><span>09:00</span></div>
           </div>
           <div class="ev" data-track="event_giua_ky">
             <div class="ev-ic" style="background:#FFF3D6">📄</div>
             <div class="meta"><b>Kiểm tra giữa kỳ</b><span>Nhập môn Công nghệ Giáo dục</span></div>
-            <div class="time">25/04<br>14:00</div>
+            <div class="time"><span>25/04</span><span>14:00</span></div>
           </div>
         </div>
       </section>
@@ -501,11 +503,11 @@ function renderDeadlines(list){
     .filter(d => d.left >= 0)
     .sort((a,b) => a.left - b.left)
     .map((d,i) => `
-      <div class="dl-item" data-track="deadline_${i}_${esc(d.task).slice(0,25).replace(/\s+/g,'_')}">
+      <div class="dl-item" data-track="deadline_${i}_${esc(d.task).slice(0,25).replace(/\s+/g,'_')}"
+           data-course="${esc(d.course)}" data-task="${esc(d.task)}" data-due="${esc(d.due)}">
         <div class="dl-ic" style="background:${SQ_COLORS[i%3]}">📅</div>
         <div class="dl-meta"><small>${esc(d.course)}</small><b>${esc(d.task)}</b></div>
         <span class="dl-due">${d.left===0?'Hôm nay!':'Còn '+d.left+' ngày nữa'}</span>
-        <span class="dl-go">→</span>
       </div>`).join('') || '<div style="padding:14px;color:var(--grey)">Không có deadline nào sắp tới 🎉</div>';
 }
 
@@ -517,7 +519,7 @@ function renderExams(list){
     <div class="ev" data-track="exam_${esc(e.course).slice(0,20).replace(/\s+/g,'_')}">
       <div class="ev-ic" style="background:#FDEDEF">📄</div>
       <div class="meta"><b>${esc(e.course)}</b><span>${esc(e.note||'')} ${e.room?'· Phòng '+esc(e.room):''}</span></div>
-      <div class="time">${fmtDM(e.date)}<br>${esc(e.time||'')}</div>
+      <div class="time"><span>${fmtDM(e.date)}</span><span>${esc(e.time||'')}</span></div>
     </div>`;
   const todayList = list.filter(e => String(e.date).slice(0,10) === today);
   const upcoming  = list.filter(e => String(e.date).slice(0,10) > today)
@@ -608,6 +610,19 @@ function mDeadlines(){
       <div style="margin-left:auto;color:var(--red);font-weight:700;white-space:nowrap">
         ${daysLeft(d.due)===0?'Hôm nay':daysLeft(d.due)<0?'Đã qua':'Còn '+daysLeft(d.due)+' ngày'}</div></div>`).join(''));
 }
+function mDeadlineOne(course, task, due){
+  const left = due ? daysLeft(due) : null;
+  const dueTxt = left==null ? '—' : (left===0?'Hôm nay':left<0?'Đã quá hạn':'Còn '+left+' ngày ('+fmtDM(due)+')');
+  openDetail(task, `
+    <div class="dm-kv">
+      <dt>Môn học</dt><dd>${esc(course)}</dd>
+      <dt>Bài tập</dt><dd>${esc(task)}</dd>
+      <dt>Hạn nộp</dt><dd style="color:var(--red)">${dueTxt}</dd>
+      <dt>Trạng thái</dt><dd>Chưa nộp</dd>
+    </div>
+    <div class="dm-row"><div class="ic" style="background:var(--red-bg)">📎</div>
+      <div><b>Nộp bài</b><small>Khu vực nộp bài & xem yêu cầu chi tiết nằm trong bản LMS đầy đủ.</small></div></div>`);
+}
 function mGrades(){
   const g = D().grades;
   if (!g.length) {
@@ -661,6 +676,7 @@ renderBell();
 const ACTIONS = {
   notifications: () => document.getElementById('bellDrop').classList.toggle('open'),
   theme_toggle: () => document.body.classList.toggle('dark'),
+  menu_toggle: () => document.getElementById('app').classList.toggle('collapsed'),
   deadlines_view_all: mDeadlines, nav_bai_tap: mDeadlines,
   results_detail: mGrades, nav_diem_so: mGrades,
   nav_tin_nhan: mAnnouncements, calendar_view_all: mAnnouncements,
@@ -683,7 +699,7 @@ document.addEventListener('click', e => {
     }
   }
   // bấm item: deadline / sự kiện lịch / ngày trên lịch / thông báo
-  const dl = e.target.closest('.dl-item');   if (dl) mDeadlines();
+  const dl = e.target.closest('.dl-item');   if (dl) mDeadlineOne(dl.dataset.course, dl.dataset.task, dl.dataset.due);
   const ev = e.target.closest('.ev');        if (ev) mAnnouncements();
   const td = e.target.closest('td[data-date]'); if (td) mDay(td.dataset.date);
   const an = e.target.closest('#annList .course, .bd-item'); if (an) mAnnouncements();
