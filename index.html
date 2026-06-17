@@ -338,11 +338,6 @@
           <div class="chart-cap">Các công nghệ giáo dục tiên tiến - 123458</div>
         </section>
 
-        <!-- Announcements (đổ từ Google Sheet) -->
-        <section class="card" data-section="announcements" id="annCard" style="display:none">
-          <div class="sec-head"><h2>Thông báo</h2></div>
-          <div id="annList"></div>
-        </section>
       </div>
 
       <!-- RIGHT COLUMN: CALENDAR -->
@@ -441,8 +436,8 @@ let calY = NOW.getFullYear(), calM = NOW.getMonth(); // tháng đang hiển th�
 function calDots(){
   const map = {}; // 'yyyy-mm-dd' -> [màu]
   const c = window.CONTENT || {};
-  (c.exams||[]).forEach(e => { const k=String(e.date).slice(0,10); (map[k]=map[k]||[]).push('var(--red)'); });
-  (c.deadlines||[]).forEach(d => { const k=String(d.due).slice(0,10); (map[k]=map[k]||[]).push('var(--orange)'); });
+  (c.exams||[]).forEach(e => { const k=dateKey(e.date); if(k){(map[k]=map[k]||[]).push('var(--red)');} });
+  (c.deadlines||[]).forEach(d => { const k=dateKey(d.due); if(k){(map[k]=map[k]||[]).push('var(--orange)');} });
   return map;
 }
 function renderCal(){
@@ -452,7 +447,7 @@ function renderCal(){
   const lead = (first.getDay() + 6) % 7;            // số ô tháng trước (Mon-first)
   const dim  = new Date(calY, calM+1, 0).getDate(); // số ngày trong tháng
   const dimPrev = new Date(calY, calM, 0).getDate();
-  const todayK = `${NOW.getFullYear()}-${String(NOW.getMonth()+1).padStart(2,'0')}-${String(NOW.getDate()).padStart(2,'0')}`;
+  const todayK = todayKey();
   const dots = calDots();
   let html='', cell=0, day=1, next=1;
   while (day <= dim) {
@@ -478,8 +473,23 @@ renderCal();
    Nếu Sheet trống / lỗi mạng → giữ nguyên dữ liệu demo có sẵn.
    ============================================================ */
 const SQ_COLORS = ['var(--peach)','var(--lime)','var(--blue)'];
-function daysLeft(d){ return Math.ceil((new Date(d) - new Date()) / 86400000); }
-function fmtDM(d){ const x=new Date(d); return String(x.getDate()).padStart(2,'0')+'/'+String(x.getMonth()+1).padStart(2,'0'); }
+const VN_TZ = 'Asia/Ho_Chi_Minh';
+/* Quy mọi giá trị ngày về 'yyyy-mm-dd' theo GIỜ VIỆT NAM (chống lệch ±1 ngày do timezone) */
+function dateKey(v){
+  if(v==null) return '';
+  v=String(v).trim();
+  if(/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;                 // đã là ngày thuần
+  const d=new Date(v);
+  if(isNaN(d)) return v.slice(0,10);
+  return d.toLocaleDateString('en-CA',{timeZone:VN_TZ});      // -> yyyy-mm-dd theo VN
+}
+function todayKey(){ return new Date().toLocaleDateString('en-CA',{timeZone:VN_TZ}); }
+function daysLeft(d){
+  const k=dateKey(d); if(!/^\d{4}-\d{2}-\d{2}$/.test(k)) return 0;
+  const a=new Date(k+'T00:00:00+07:00'), b=new Date(todayKey()+'T00:00:00+07:00');
+  return Math.round((a-b)/86400000);
+}
+function fmtDM(d){ const k=dateKey(d); if(!/^\d{4}-\d{2}-\d{2}$/.test(k)) return k; const p=k.split('-'); return p[2]+'/'+p[1]; }
 /* Làm sạch giá trị giờ: nhận "09:00", hoặc chuỗi ISO lỡ lọt từ Sheet → lấy HH:mm */
 function cleanTime(t){
   if(t==null) return '';
@@ -524,16 +534,16 @@ function renderDeadlines(list){
 function renderExams(list){
   if (!list || !list.length) return;
   const ev = document.querySelector('.events');
-  const today = new Date().toISOString().slice(0,10);
+  const today = todayKey();
   const mk = e => `
     <div class="ev" data-track="exam_${esc(e.course).slice(0,20).replace(/\s+/g,'_')}">
       <div class="ev-ic" style="background:#FDEDEF">📄</div>
       <div class="meta"><b>${esc(e.course)}</b><span>${esc(e.note||'')} ${e.room?'· Phòng '+esc(e.room):''}</span></div>
       <div class="time"><span>${fmtDM(e.date)}</span><span>${esc(cleanTime(e.time))}</span></div>
     </div>`;
-  const todayList = list.filter(e => String(e.date).slice(0,10) === today);
-  const upcoming  = list.filter(e => String(e.date).slice(0,10) > today)
-                        .sort((a,b) => String(a.date).localeCompare(String(b.date)));
+  const todayList = list.filter(e => dateKey(e.date) === today);
+  const upcoming  = list.filter(e => dateKey(e.date) > today)
+                        .sort((a,b) => dateKey(a.date).localeCompare(dateKey(b.date)));
   ev.innerHTML =
     `<h3>Lịch thi ${todayList.length ? '- hôm nay' : ''}</h3>` +
     (todayList.map(mk).join('') || '<div style="font-size:12.5px;color:var(--grey);margin-bottom:8px">Hôm nay không có lịch thi.</div>') +
@@ -541,18 +551,7 @@ function renderExams(list){
     (upcoming.map(mk).join('') || '<div style="font-size:12.5px;color:var(--grey)">Chưa có lịch.</div>');
 }
 
-function renderAnnouncements(list){
-  if (!list || !list.length) return;
-  document.getElementById('annCard').style.display = '';
-  document.getElementById('annList').innerHTML = list
-    .sort((a,b) => String(b.date).localeCompare(String(a.date)))
-    .map((a,i) => `
-      <div class="course" data-track="announcement_${i}">
-        <div class="course-sq" style="background:${SQ_COLORS[i%3]};width:36px;height:36px">🔔</div>
-        <div class="info"><b>${esc(a.title)} <span style="color:var(--grey);font-weight:400;font-size:12px">· ${fmtDM(a.date)}</span></b>
-          <p>${esc(a.body)}</p></div>
-      </div>`).join('');
-}
+function renderAnnouncements(list){ /* card thông báo đã bỏ — thông báo hiển thị qua chuông 🔔 */ }
 
 function gradeStats(list){
   const pub = list.filter(g => g.score !== '' && g.score != null && !isNaN(Number(g.score)));
@@ -651,6 +650,19 @@ function mGrades(){
       <div><b>Điểm tổng kết tạm tính</b><small>dựa trên ${wPub}% trọng số đã công bố</small></div>
       <div style="margin-left:auto;font-weight:800;font-size:18px;color:var(--red)">${total.toFixed(1)}<small style="font-weight:400;color:var(--grey)">/10</small></div></div>`);
 }
+function mSchedule(){
+  const d = D();
+  const items = [
+    ...d.exams.map(e => ({k:dateKey(e.date), ic:'📄', bg:'var(--red-bg)', title:'Thi: '+e.course,
+      sub:[cleanTime(e.time), e.room?'Phòng '+e.room:'', e.note].filter(Boolean).join(' · ')})),
+    ...d.deadlines.map(x => ({k:dateKey(x.due), ic:'📅', bg:'#FFF3D6', title:'Hạn nộp: '+x.task, sub:x.course}))
+  ].filter(i => i.k).sort((a,b) => a.k.localeCompare(b.k));
+  openDetail('Lịch học sắp tới', items.length
+    ? items.map(i => `<div class="dm-row"><div class="ic" style="background:${i.bg}">${i.ic}</div>
+        <div><b>${esc(i.title)}</b><small>${esc(i.sub)}</small></div>
+        <div style="margin-left:auto;color:var(--grey);white-space:nowrap">${i.k.split('-').reverse().join('/')}</div></div>`).join('')
+    : '<p style="font-size:13px;color:var(--grey)">Chưa có lịch thi hay hạn nộp nào.</p>');
+}
 function mAnnouncements(){
   openDetail('Thông báo', D().announcements.map(a => `
     <div class="dm-row"><div class="ic" style="background:#FFF3D6">🔔</div>
@@ -664,9 +676,9 @@ function mCourses(){
 function mDay(k){
   const d = D();
   const items = [
-    ...d.exams.filter(e => String(e.date).slice(0,10) === k)
+    ...d.exams.filter(e => dateKey(e.date) === k)
       .map(e => `<div class="dm-row"><div class="ic" style="background:var(--red-bg)">📄</div><div><b>Thi: ${esc(e.course)}</b><small>${esc(cleanTime(e.time))} ${e.room?'· Phòng '+esc(e.room):''} ${e.note?'· '+esc(e.note):''}</small></div></div>`),
-    ...d.deadlines.filter(x => String(x.due).slice(0,10) === k)
+    ...d.deadlines.filter(x => dateKey(x.due) === k)
       .map(x => `<div class="dm-row"><div class="ic" style="background:#FFF3D6">📅</div><div><b>Hạn nộp: ${esc(x.task)}</b><small>${esc(x.course)}</small></div></div>`)
   ];
   openDetail('Ngày ' + k.split('-').reverse().join('/'),
@@ -689,7 +701,7 @@ const ACTIONS = {
   menu_toggle: () => document.getElementById('app').classList.toggle('collapsed'),
   deadlines_view_all: mDeadlines, nav_bai_tap: mDeadlines,
   results_detail: mGrades, nav_diem_so: mGrades,
-  nav_tin_nhan: mAnnouncements, calendar_view_all: mAnnouncements,
+  nav_tin_nhan: mAnnouncements, calendar_view_all: mSchedule,
   courses_view_all: mCourses, nav_khoa_hoc: mCourses,
   calendar_prev: () => { calM--; if (calM<0){calM=11;calY--;} renderCal(); },
   calendar_next: () => { calM++; if (calM>11){calM=0;calY++;} renderCal(); },
@@ -712,7 +724,7 @@ document.addEventListener('click', e => {
   const dl = e.target.closest('.dl-item');   if (dl) mDeadlineOne(dl.dataset.course, dl.dataset.task, dl.dataset.due);
   const ev = e.target.closest('.ev');        if (ev) mAnnouncements();
   const td = e.target.closest('td[data-date]'); if (td) mDay(td.dataset.date);
-  const an = e.target.closest('#annList .course, .bd-item'); if (an) mAnnouncements();
+  const an = e.target.closest('.bd-item'); if (an) mAnnouncements();
   const co = e.target.closest('section[data-section="courses"] .course'); if (co) mCourses();
   if (!e.target.closest('.bell-wrap')) document.getElementById('bellDrop').classList.remove('open');
 });
