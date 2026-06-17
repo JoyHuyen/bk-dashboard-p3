@@ -415,6 +415,7 @@
 
 <script src="tracker.js"></script>
 <script>
+const VN_TZ = 'Asia/Ho_Chi_Minh';   // khai báo sớm: renderCal() dùng ngay từ đầu
 /* ---------- render progress rings ---------- */
 document.querySelectorAll('.ring').forEach(r=>{
   const pct=+r.dataset.pct, R=22, C=2*Math.PI*R;
@@ -473,7 +474,6 @@ renderCal();
    Nếu Sheet trống / lỗi mạng → giữ nguyên dữ liệu demo có sẵn.
    ============================================================ */
 const SQ_COLORS = ['var(--peach)','var(--lime)','var(--blue)'];
-const VN_TZ = 'Asia/Ho_Chi_Minh';
 /* Quy mọi giá trị ngày về 'yyyy-mm-dd' theo GIỜ VIỆT NAM (chống lệch ±1 ngày do timezone) */
 function dateKey(v){
   if(v==null) return '';
