@@ -480,6 +480,16 @@ renderCal();
 const SQ_COLORS = ['var(--peach)','var(--lime)','var(--blue)'];
 function daysLeft(d){ return Math.ceil((new Date(d) - new Date()) / 86400000); }
 function fmtDM(d){ const x=new Date(d); return String(x.getDate()).padStart(2,'0')+'/'+String(x.getMonth()+1).padStart(2,'0'); }
+/* Làm sạch giá trị giờ: nhận "09:00", hoặc chuỗi ISO lỡ lọt từ Sheet → lấy HH:mm */
+function cleanTime(t){
+  if(t==null) return '';
+  t=String(t).trim();
+  let m=t.match(/^(\d{1,2}):(\d{2})/);                 // "9:00" / "09:00"
+  if(m) return m[1].padStart(2,'0')+':'+m[2];
+  m=t.match(/T(\d{2}):(\d{2})/);                        // ISO "....T09:00:..Z"
+  if(m) return m[1]+':'+m[2];
+  return t;
+}
 function esc(s){ const d=document.createElement('div'); d.textContent=String(s??''); return d.innerHTML; }
 
 window.loadContent = function(pid){
@@ -519,7 +529,7 @@ function renderExams(list){
     <div class="ev" data-track="exam_${esc(e.course).slice(0,20).replace(/\s+/g,'_')}">
       <div class="ev-ic" style="background:#FDEDEF">📄</div>
       <div class="meta"><b>${esc(e.course)}</b><span>${esc(e.note||'')} ${e.room?'· Phòng '+esc(e.room):''}</span></div>
-      <div class="time"><span>${fmtDM(e.date)}</span><span>${esc(e.time||'')}</span></div>
+      <div class="time"><span>${fmtDM(e.date)}</span><span>${esc(cleanTime(e.time))}</span></div>
     </div>`;
   const todayList = list.filter(e => String(e.date).slice(0,10) === today);
   const upcoming  = list.filter(e => String(e.date).slice(0,10) > today)
@@ -655,7 +665,7 @@ function mDay(k){
   const d = D();
   const items = [
     ...d.exams.filter(e => String(e.date).slice(0,10) === k)
-      .map(e => `<div class="dm-row"><div class="ic" style="background:var(--red-bg)">📄</div><div><b>Thi: ${esc(e.course)}</b><small>${esc(e.time||'')} ${e.room?'· Phòng '+esc(e.room):''} ${e.note?'· '+esc(e.note):''}</small></div></div>`),
+      .map(e => `<div class="dm-row"><div class="ic" style="background:var(--red-bg)">📄</div><div><b>Thi: ${esc(e.course)}</b><small>${esc(cleanTime(e.time))} ${e.room?'· Phòng '+esc(e.room):''} ${e.note?'· '+esc(e.note):''}</small></div></div>`),
     ...d.deadlines.filter(x => String(x.due).slice(0,10) === k)
       .map(x => `<div class="dm-row"><div class="ic" style="background:#FFF3D6">📅</div><div><b>Hạn nộp: ${esc(x.task)}</b><small>${esc(x.course)}</small></div></div>`)
   ];
