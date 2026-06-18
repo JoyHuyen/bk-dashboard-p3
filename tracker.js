@@ -9,7 +9,7 @@
 
 /* ====== 1. CẤU HÌNH — dán Web app URL từ Apps Script (xem apps-script.gs) ====== */
 const GAS_URL = "https://script.google.com/macros/s/AKfycbx_TSeUza9JMXBZ_AGMKr-yo-3NcQC3Mk8gUkmTQzNEq39nuGCGfWNb6FNsMp1pLi6thA/exec";
-const PROTOTYPE_VERSION = "P3.1"; // đổi theo biến thể đang chạy
+const PROTOTYPE_VERSION = "P3-WS3-d2-mobile"; // ngày 2 (responsive). Ngày 1 đã thu dưới nhãn cũ.
 
 /* ====== 2. State ====== */
 const SESSION_ID = crypto.randomUUID();
