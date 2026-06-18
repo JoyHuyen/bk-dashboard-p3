@@ -60,6 +60,7 @@
   .bell .badge{position:absolute;top:-6px;right:-7px;background:var(--red);color:#fff;font-size:9.5px;min-width:15px;height:15px;border-radius:8px;display:flex;align-items:center;justify-content:center}
 
   .content{display:grid;grid-template-columns:1fr 328px;gap:22px;padding:22px 26px;align-items:start}
+  .left-col{display:flex;flex-direction:column;gap:22px}
   .card{background:var(--card);border-radius:12px;border:1px solid var(--line)}
 
   /* Deadline panel */
@@ -208,7 +209,12 @@
     .top-right .pill,.top-right .date{display:none}    /* ẩn ngôn ngữ & ngày cho đỡ chật */
     .search{order:5;flex-basis:100%;max-width:none}
     .content{grid-template-columns:1fr;padding:14px;gap:16px}
-    .cal-card{order:-1}                                  /* mobile: Lịch học lên đầu tiên */
+    /* mobile: tách khối trái để sắp thứ tự từng thẻ */
+    .left-col{display:contents}
+    .deadline{order:1}                                   /* Bài tập sắp hết hạn lên đầu */
+    .cal-card{order:2}                                   /* rồi tới Lịch học */
+    section[data-section="courses"]{order:3}
+    section[data-section="results"]{order:4}
     .deadline-head h2{font-size:17px}
     .sec-head h2{font-size:16px}
     .bell-drop{width:300px;max-width:86vw}
@@ -288,7 +294,7 @@
 
     <div class="content">
       <!-- LEFT COLUMN -->
-      <div style="display:flex;flex-direction:column;gap:22px">
+      <div class="left-col">
 
         <!-- Deadlines -->
         <section class="card deadline" data-section="deadlines">
@@ -468,8 +474,12 @@ document.getElementById('todayLabel').textContent =
 document.querySelector('.greet small').textContent =
   NOW.getHours() < 12 ? 'Chào buổi sáng,' : NOW.getHours() < 18 ? 'Chào buổi chiều,' : 'Chào buổi tối,';
 
-/* ---------- calendar động: chuyển tháng, dot theo lịch thi/deadline, bấm ngày ---------- */
-let calY = NOW.getFullYear(), calM = NOW.getMonth(); // tháng đang hiển thị
+/* ---------- calendar động: tháng (desktop) / tuần (mobile), dot theo lịch thi/deadline ---------- */
+let calY = NOW.getFullYear(), calM = NOW.getMonth(); // tháng đang hiển thị (desktop)
+const CAL_WEEK = isMobile();                          // mobile: chỉ hiện 1 tuần cho ngắn
+function mondayOf(d){ const x=new Date(d); x.setDate(x.getDate()-((x.getDay()+6)%7)); x.setHours(0,0,0,0); return x; }
+function ymd(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+let weekStart = mondayOf(NOW);                        // tuần đang hiển thị (mobile)
 function calDots(){
   const map = {}; // 'yyyy-mm-dd' -> [màu]
   const c = window.CONTENT || {};
@@ -479,28 +489,40 @@ function calDots(){
 }
 function renderCal(){
   const tb = document.querySelector('#calTable tbody');
-  document.querySelector('.cal-month span').textContent = `Tháng ${calM+1}/${calY}`;
-  const first = new Date(calY, calM, 1);
-  const lead = (first.getDay() + 6) % 7;            // số ô tháng trước (Mon-first)
-  const dim  = new Date(calY, calM+1, 0).getDate(); // số ngày trong tháng
-  const dimPrev = new Date(calY, calM, 0).getDate();
+  const lbl = document.querySelector('.cal-month span');
   const todayK = todayKey();
   const dots = calDots();
-  let html='', cell=0, day=1, next=1;
-  while (day <= dim) {
-    html += '<tr>';
-    for (let d=0; d<7; d++, cell++) {
-      if (cell < lead) html += `<td class="dim"><span>${dimPrev-lead+1+cell}</span></td>`;
-      else if (day <= dim) {
-        const k = `${calY}-${String(calM+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-        const t = k===todayK ? ' class="today"' : '';
-        const dd = dots[k] ? `<div class="dots">${dots[k].slice(0,3).map(c=>`<span class="dot" style="background:${c}"></span>`).join('')}</div>` : '';
-        html += `<td${t} data-track="cal_day_${k}" data-date="${k}"><span>${day}</span>${dd}</td>`; day++;
-      } else html += `<td class="dim"><span>${next++}</span></td>`;
-    }
+  const dayCell = (dateObj) => {
+    const k = ymd(dateObj);
+    const t = k===todayK ? ' class="today"' : '';
+    const dd = dots[k] ? `<div class="dots">${dots[k].slice(0,3).map(c=>`<span class="dot" style="background:${c}"></span>`).join('')}</div>` : '';
+    return `<td${t} data-track="cal_day_${k}" data-date="${k}"><span>${dateObj.getDate()}</span>${dd}</td>`;
+  };
+  if (CAL_WEEK) {                                    // ----- chế độ TUẦN (mobile) -----
+    const end = new Date(weekStart); end.setDate(end.getDate()+6);
+    let html = '<tr>';
+    for (let i=0;i<7;i++){ const d=new Date(weekStart); d.setDate(d.getDate()+i); html+=dayCell(d); }
     html += '</tr>';
+    tb.innerHTML = html;
+    lbl.textContent = `${weekStart.getDate()}/${weekStart.getMonth()+1} – ${end.getDate()}/${end.getMonth()+1}`;
+  } else {                                           // ----- chế độ THÁNG (desktop) -----
+    lbl.textContent = `Tháng ${calM+1}/${calY}`;
+    const first = new Date(calY, calM, 1);
+    const lead = (first.getDay() + 6) % 7;
+    const dim  = new Date(calY, calM+1, 0).getDate();
+    const dimPrev = new Date(calY, calM, 0).getDate();
+    let html='', cell=0, day=1, next=1;
+    while (day <= dim) {
+      html += '<tr>';
+      for (let d=0; d<7; d++, cell++) {
+        if (cell < lead) html += `<td class="dim"><span>${dimPrev-lead+1+cell}</span></td>`;
+        else if (day <= dim) { html += dayCell(new Date(calY, calM, day)); day++; }
+        else html += `<td class="dim"><span>${next++}</span></td>`;
+      }
+      html += '</tr>';
+    }
+    tb.innerHTML = html;
   }
-  tb.innerHTML = html;
 }
 renderCal();
 
@@ -743,8 +765,8 @@ const ACTIONS = {
   results_detail: mGrades, nav_diem_so: mGrades,
   nav_tin_nhan: mAnnouncements, calendar_view_all: mSchedule,
   courses_view_all: mCourses, nav_khoa_hoc: mCourses,
-  calendar_prev: () => { calM--; if (calM<0){calM=11;calY--;} renderCal(); },
-  calendar_next: () => { calM++; if (calM>11){calM=0;calY++;} renderCal(); },
+  calendar_prev: () => { if (CAL_WEEK){ weekStart.setDate(weekStart.getDate()-7); } else { calM--; if (calM<0){calM=11;calY--;} } renderCal(); },
+  calendar_next: () => { if (CAL_WEEK){ weekStart.setDate(weekStart.getDate()+7); } else { calM++; if (calM>11){calM=0;calY++;} } renderCal(); },
   results_prev: () => toast('Bản thử nghiệm hiển thị 1 môn — bản đầy đủ sẽ chuyển giữa các môn.'),
   results_next: () => toast('Bản thử nghiệm hiển thị 1 môn — bản đầy đủ sẽ chuyển giữa các môn.'),
 };
